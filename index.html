@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>고양이랑 사진찍기</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        #message {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            font-size: 15px;
+            color: lightgray;
+            z-index: 2;
+        }
+
+        button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        img.cat {
+            position: absolute;
+            width: 170px; /* 고양이 이미지 크기 */
+            height: auto;
+            z-index: 2; /* 고양이 이미지가 다른 요소 위에 보이도록 설정 */
+            cursor: grab; /* 드래그 가능 표시 */
+        }
+    </style>
+</head>
+<body>
+    <video id="webcam" autoplay></video>
+    <div id="message">스페이스바를 눌러주세요! 고양이가 등장합니다. 드래그해서 위치를 바꿀 수 있어요.</div>
+    <button id="captureButton">사진 찍기</button>
+    <canvas id="canvas" style="display: none;"></canvas>
+
+    <script>
+        const captureButton = document.getElementById('captureButton');
+        const webcam = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+
+        const catImages = [
+            'cat2.png', 'cat3.png', 
+            'cat4.png', 'cat5.png', 'cat6.png', 
+            'cat7.png', 'cat8.png', 'cat9.png', 
+            'cat10.png', 'cat11.png'
+        ];
+
+        let stream;
+
+        async function startWebcam() {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            webcam.srcObject = stream;
+        }
+
+        function showCatImage(index) {
+            const catImage = document.createElement('img');
+            catImage.src = catImages[index];
+            catImage.className = 'cat';
+            catImage.style.left = Math.random() * (window.innerWidth - 170) + 'px'; // 화면 가로 길이에 맞게 위치 설정
+            catImage.style.top = Math.random() * (window.innerHeight - 170) + 'px'; // 화면 세로 길이에 맞게 위치 설정
+
+            // 드래그 이벤트 핸들러
+            catImage.draggable = true;
+            catImage.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', null); // 드래그 가능하도록 설정
+                catImage.style.opacity = '0.5'; // 드래그 중 투명도 조정
+            });
+
+            catImage.addEventListener('dragend', () => {
+                catImage.style.opacity = '1'; // 드래그가 끝나면 원래 투명도로 돌아감
+            });
+
+            catImage.addEventListener('drag', (e) => {
+                if (e.clientX && e.clientY) {
+                    catImage.style.left = (e.clientX - 85) + 'px'; // 고양이 이미지의 가로 길이의 절반을 빼서 중앙 정렬
+                    catImage.style.top = (e.clientY - 85) + 'px'; // 고양이 이미지의 세로 길이의 절반을 빼서 중앙 정렬
+                }
+            });
+
+            document.body.appendChild(catImage);
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') { // 스페이스 바를 눌러 고양이를 등장
+                const randomIndex = Math.floor(Math.random() * catImages.length);
+                showCatImage(randomIndex);
+            }
+        });
+
+        captureButton.addEventListener('click', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(webcam, 0, 0, canvas.width, canvas.height); // 웹캠 이미지 그리기
+
+            const catImagesOnScreen = document.querySelectorAll('img.cat'); // 화면에 있는 고양이 이미지들 선택
+
+            // 고양이 이미지를 캔버스에 그리기
+            catImagesOnScreen.forEach(cat => {
+                const x = parseFloat(cat.style.left);
+                const y = parseFloat(cat.style.top);
+                const img = new Image();
+                img.src = cat.src;
+                img.onload = () => {
+                    context.drawImage(img, x, y, 170, 170); // 고양이 이미지를 캔버스에 그리기
+                };
+            });
+
+            // Download the image as Data URL
+            const dataURL = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = dataURL;
+            link.download = 'cat_photo.png';
+            document.body.appendChild(link);
+            link.click(); // 클릭하여 다운로드
+            document.body.removeChild(link); // 링크 제거
+        });
+
+        window.onload = startWebcam; // 웹캠 시작
+    </script>
+</body>
+</html>
